@@ -1,6 +1,7 @@
 import 'package:alarm_app/constants/theme_data.dart';
 import 'package:alarm_app/data.dart';
 import 'package:alarm_app/models/menu_info.dart';
+import 'package:alarm_app/views/alarm_page.dart';
 import 'package:alarm_app/views/clock_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -35,10 +36,9 @@ class _HomePageState extends State<HomePage> {
               builder: (BuildContext context, MenuInfo value, Widget? child) {
                 if (value.menuType == MenuType.clock) {
                   return const ClockPage();
-                } /* else if (value.menuType == MenuType.alarm) {
-                  return AlarmPage();
-                } */
-                else {
+                } else if (value.menuType == MenuType.alarm) {
+                  return const AlarmPage();
+                } else {
                   return SizedBox(
                     child: RichText(
                       text: TextSpan(
