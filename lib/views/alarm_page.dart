@@ -1,8 +1,11 @@
 import 'package:alarm_app/constants/theme_data.dart';
+import 'package:alarm_app/main.dart';
 import 'package:alarm_app/models/alarm_info.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 class AlarmPage extends StatefulWidget {
   const AlarmPage({Key? key}) : super(key: key);
@@ -59,6 +62,13 @@ class _AlarmPageState extends State<AlarmPage> {
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
           ),
           onPressed: () {
+            scheduleAlarm(
+                DateTime.now(),
+                AlarmInfo(
+                    title: 'titulo',
+                    alarmDateTime: DateTime.now(),
+                    gradientColorIndex: 1));
+            return;
             _alarmTimeString = DateFormat('HH:mm').format(DateTime.now());
             showModalBottomSheet(
               useRootNavigator: true,
@@ -126,7 +136,6 @@ class _AlarmPageState extends State<AlarmPage> {
                 );
               },
             );
-            // scheduleAlarm();
           },
           child: Column(
             children: <Widget>[
@@ -275,26 +284,32 @@ class _AlarmPageState extends State<AlarmPage> {
 
   void scheduleAlarm(
       DateTime scheduledNotificationDateTime, AlarmInfo alarmInfo) async {
-    /* 
-    var androidPlatformChannelSpecifics = AndroidNotificationDetails(
-      'alarm_notif',
-      'alarm_notif',
-      'Channel for Alarm notification',
-      icon: 'codex_logo',
-      sound: RawResourceAndroidNotificationSound('a_long_cold_sting'),
-      largeIcon: DrawableResourceAndroidBitmap('codex_logo'),
-    );
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+        0,
+        alarmInfo.title,
+        alarmInfo.title,
+        tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)),
+        const NotificationDetails(
+            android: AndroidNotificationDetails(
+                'gonzaloaldana.com/local_notifications', 'your channel name',
+                channelDescription: 'your channel description')),
+        androidAllowWhileIdle: true,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime);
+  }
 
-    var iOSPlatformChannelSpecifics = IOSNotificationDetails(
-        sound: 'a_long_cold_sting.wav',
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true);
-    var platformChannelSpecifics = NotificationDetails(
-        androidPlatformChannelSpecifics, iOSPlatformChannelSpecifics);
-
-    await flutterLocalNotificationsPlugin.schedule(0, 'Office', alarmInfo.title,
-        scheduledNotificationDateTime, platformChannelSpecifics); */
+  /// Every minute
+  /// TODO there are more examples here https://pub.dev/packages/flutter_local_notifications/versions/9.5.3+1/example
+  Future<void> _repeatNotification() async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+            'repeating channel id', 'repeating channel name',
+            channelDescription: 'repeating description');
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+    await flutterLocalNotificationsPlugin.periodicallyShow(0, 'repeating title',
+        'repeating body', RepeatInterval.everyMinute, platformChannelSpecifics,
+        androidAllowWhileIdle: true);
   }
 
   void onSaveAlarm() {
