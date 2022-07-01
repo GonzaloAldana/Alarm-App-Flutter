@@ -1,11 +1,9 @@
+import 'package:alarm_app/alarm_helper.dart';
 import 'package:alarm_app/constants/theme_data.dart';
-import 'package:alarm_app/main.dart';
 import 'package:alarm_app/models/alarm_info.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
-import 'package:timezone/timezone.dart' as tz;
 
 class AlarmPage extends StatefulWidget {
   const AlarmPage({Key? key}) : super(key: key);
@@ -17,29 +15,22 @@ class AlarmPage extends StatefulWidget {
 class _AlarmPageState extends State<AlarmPage> {
   late DateTime _alarmTime;
   late String _alarmTimeString;
-  // TODO add functionality
-  // AlarmHelper _alarmHelper = AlarmHelper();
+  final AlarmHelper _alarmHelper = AlarmHelper();
   late Future<List<AlarmInfo>> _alarms;
   late List<AlarmInfo> _currentAlarms;
 
   @override
   void initState() {
+    super.initState();
     _alarmTime = DateTime.now();
     loadAlarms();
-    /* _alarmHelper.initializeDatabase().then((value) {
+    _alarmHelper.initializeDatabase().then((value) {
       loadAlarms();
-    }); */
-    super.initState();
+    });
   }
 
   void loadAlarms() {
-    _alarms = Future.delayed(const Duration(seconds: 1)).then((value) => [
-          AlarmInfo(
-              title: 'Titulo',
-              alarmDateTime: DateTime(2023),
-              gradientColorIndex: 1)
-        ]);
-    // _alarms = _alarmHelper.getAlarms();
+    _alarms = _alarmHelper.getAlarms();
     if (mounted) setState(() {});
   }
 
@@ -62,14 +53,7 @@ class _AlarmPageState extends State<AlarmPage> {
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
           ),
           onPressed: () {
-            scheduleAlarm(
-                DateTime.now(),
-                AlarmInfo(
-                    title: 'titulo',
-                    alarmDateTime: DateTime.now(),
-                    gradientColorIndex: 1));
-            return;
-            _alarmTimeString = DateFormat('HH:mm').format(DateTime.now());
+            _alarmTimeString = DateFormat('HH:mm').format(_alarmTime);
             showModalBottomSheet(
               useRootNavigator: true,
               context: context,
@@ -114,10 +98,6 @@ class _AlarmPageState extends State<AlarmPage> {
                           ),
                           const ListTile(
                             title: Text('Repeat'),
-                            trailing: Icon(Icons.arrow_forward_ios),
-                          ),
-                          const ListTile(
-                            title: Text('Sound'),
                             trailing: Icon(Icons.arrow_forward_ios),
                           ),
                           const ListTile(
@@ -282,36 +262,6 @@ class _AlarmPageState extends State<AlarmPage> {
     );
   }
 
-  void scheduleAlarm(
-      DateTime scheduledNotificationDateTime, AlarmInfo alarmInfo) async {
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-        0,
-        alarmInfo.title,
-        alarmInfo.title,
-        tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)),
-        const NotificationDetails(
-            android: AndroidNotificationDetails(
-                'gonzaloaldana.com/local_notifications', 'your channel name',
-                channelDescription: 'your channel description')),
-        androidAllowWhileIdle: true,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime);
-  }
-
-  /// Every minute
-  /// TODO there are more examples here https://pub.dev/packages/flutter_local_notifications/versions/9.5.3+1/example
-  Future<void> _repeatNotification() async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-            'repeating channel id', 'repeating channel name',
-            channelDescription: 'repeating description');
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
-    await flutterLocalNotificationsPlugin.periodicallyShow(0, 'repeating title',
-        'repeating body', RepeatInterval.everyMinute, platformChannelSpecifics,
-        androidAllowWhileIdle: true);
-  }
-
   void onSaveAlarm() {
     DateTime scheduleAlarmDateTime;
     if (_alarmTime.isAfter(DateTime.now())) {
@@ -325,15 +275,14 @@ class _AlarmPageState extends State<AlarmPage> {
       gradientColorIndex: _currentAlarms.length,
       title: 'alarm',
     );
-    // _alarmHelper.insertAlarm(alarmInfo);
-    scheduleAlarm(scheduleAlarmDateTime, alarmInfo);
+    _alarmHelper.insertAlarm(alarmInfo);
+    AlarmFunctions.scheduleAlarm(scheduleAlarmDateTime, alarmInfo);
     Navigator.pop(context);
     loadAlarms();
   }
 
   void deleteAlarm(int id) {
-    // _alarmHelper.delete(id);
-    //unsubscribe for notification
+    _alarmHelper.delete(id);
     loadAlarms();
   }
 }
