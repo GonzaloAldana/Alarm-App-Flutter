@@ -57,7 +57,11 @@ class _AlarmPageState extends State<AlarmPage> {
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
           ),
           onPressed: () {
-            _alarmTimeString = DateFormat('HH:mm').format(_alarmTime);
+            _alarmTimeString = DateFormat(
+                    _alarmRepeatInterval == AlarmRepeatInterval.onDate
+                        ? 'd/M/y HH:mm'
+                        : 'HH:mm')
+                .format(_alarmTime);
             showModalBottomSheet(
               useRootNavigator: true,
               context: context,
@@ -76,26 +80,44 @@ class _AlarmPageState extends State<AlarmPage> {
                         children: [
                           TextButton(
                             onPressed: () async {
+                              final _now = DateTime.now();
+                              if (_alarmRepeatInterval ==
+                                  AlarmRepeatInterval.onDate) {
+                                final _selectedDate = await showDatePicker(
+                                    context: context,
+                                    initialDate: _alarmTime,
+                                    firstDate: _now,
+                                    lastDate: _now
+                                        .add(const Duration(days: 365 * 10)));
+
+                                if (_selectedDate == null) return;
+                                _alarmTime = _selectedDate;
+                              } else {
+                                _alarmTime = _now;
+                              }
+
                               var selectedTime = await showTimePicker(
                                 context: context,
                                 initialTime: TimeOfDay.now(),
                               );
                               if (selectedTime != null) {
-                                final now = DateTime.now();
                                 var selectedDateTime = DateTime(
-                                    now.year,
-                                    now.month,
-                                    now.day,
+                                    _alarmTime.year,
+                                    _alarmTime.month,
+                                    _alarmTime.day,
                                     selectedTime.hour,
                                     selectedTime.minute);
                                 _alarmTime = selectedDateTime;
                                 setModalState(() {
-                                  _alarmTimeString = DateFormat('HH:mm')
+                                  _alarmTimeString = DateFormat(
+                                          _alarmRepeatInterval ==
+                                                  AlarmRepeatInterval.onDate
+                                              ? 'd/M/y HH:mm'
+                                              : 'HH:mm')
                                       .format(selectedDateTime);
                                 });
                               }
                             },
-                            // TODO if it's gonna use a date, use a date picker
                             child: Text(
                               _alarmTimeString,
                               style: const TextStyle(fontSize: 32),
@@ -112,8 +134,15 @@ class _AlarmPageState extends State<AlarmPage> {
                                           Text(alarmRepeatIntervalDisplay[e]),
                                     ))
                                 .toList(),
-                            onChanged: (v) =>
-                                setModalState(() => _alarmRepeatInterval = v!),
+                            onChanged: (v) => setModalState(() {
+                              _alarmRepeatInterval = v!;
+                              _alarmTimeString = DateFormat(
+                                      _alarmRepeatInterval ==
+                                              AlarmRepeatInterval.onDate
+                                          ? 'd/M/y HH:mm'
+                                          : 'HH:mm')
+                                  .format(_alarmTime);
+                            }),
                           ),
                           TextFormField(
                             controller: _titleController,
@@ -157,7 +186,11 @@ class _AlarmPageState extends State<AlarmPage> {
       for (var i = 0; i < snapshot.data!.length; i++) {
         final alarm = snapshot.data![i];
 
-        var alarmTime = DateFormat('hh:mm aa').format(alarm.alarmDateTime);
+        var alarmTime = DateFormat(
+                alarm.alarmRepeatInterval == AlarmRepeatInterval.onDate
+                    ? 'd/M/y HH:mm'
+                    : 'hh:mm aa')
+            .format(alarm.alarmDateTime);
         var gradientColor =
             GradientTemplate.gradientTemplate[alarm.id! % 5].colors;
         final _widget = Container(
