@@ -1,8 +1,10 @@
 import 'package:alarm_app/alarm_helper.dart';
 import 'package:alarm_app/constants/theme_data.dart';
+import 'package:alarm_app/main.dart';
 import 'package:alarm_app/models/alarm_info.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 
 class AlarmPage extends StatefulWidget {
@@ -17,7 +19,8 @@ class _AlarmPageState extends State<AlarmPage> {
   late String _alarmTimeString;
   final AlarmHelper _alarmHelper = AlarmHelper();
   late Future<List<AlarmInfo>> _alarms;
-  late List<AlarmInfo> _currentAlarms;
+  AlarmRepeatInterval _alarmRepeatInterval = AlarmRepeatInterval.onDate;
+  final _titleController = TextEditingController();
 
   @override
   void initState() {
@@ -25,12 +28,13 @@ class _AlarmPageState extends State<AlarmPage> {
     _alarmTime = DateTime.now();
     loadAlarms();
     _alarmHelper.initializeDatabase().then((value) {
-      loadAlarms();
+      loadAlarms(deleteNonSavedAlarms: true);
     });
   }
 
-  void loadAlarms() {
-    _alarms = _alarmHelper.getAlarms();
+  void loadAlarms({bool deleteNonSavedAlarms = false}) {
+    _alarms =
+        _alarmHelper.getAlarms(deleteNonSavedAlarms: deleteNonSavedAlarms);
     if (mounted) setState(() {});
   }
 
@@ -91,19 +95,32 @@ class _AlarmPageState extends State<AlarmPage> {
                                 });
                               }
                             },
+                            // TODO if it's gonna use a date, use a date picker
                             child: Text(
                               _alarmTimeString,
                               style: const TextStyle(fontSize: 32),
                             ),
                           ),
-                          const ListTile(
-                            title: Text('Repeat'),
-                            trailing: Icon(Icons.arrow_forward_ios),
+                          DropdownButton<AlarmRepeatInterval>(
+                            isExpanded: true,
+                            value: _alarmRepeatInterval,
+                            items: AlarmRepeatInterval.values
+                                .map((e) =>
+                                    DropdownMenuItem<AlarmRepeatInterval>(
+                                      value: e,
+                                      child:
+                                          Text(alarmRepeatIntervalDisplay[e]),
+                                    ))
+                                .toList(),
+                            onChanged: (v) =>
+                                setModalState(() => _alarmRepeatInterval = v!),
                           ),
-                          const ListTile(
-                            title: Text('Title'),
-                            trailing: Icon(Icons.arrow_forward_ios),
+                          TextFormField(
+                            controller: _titleController,
+                            decoration:
+                                const InputDecoration(labelText: 'Title'),
                           ),
+                          const SizedBox(height: 12),
                           FloatingActionButton.extended(
                             onPressed: onSaveAlarm,
                             icon: const Icon(Icons.alarm),
@@ -134,102 +151,98 @@ class _AlarmPageState extends State<AlarmPage> {
       ),
     );
 
-    _cards(AsyncSnapshot<List<AlarmInfo>> snapshot) =>
-        snapshot.data!.map<Widget>((alarm) {
-          var alarmTime = DateFormat('hh:mm aa').format(alarm.alarmDateTime);
-          var gradientColor = GradientTemplate
-              .gradientTemplate[alarm.gradientColorIndex].colors;
-          return Container(
-            margin: const EdgeInsets.only(bottom: 32),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: gradientColor,
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
+    List<Widget> _cards(AsyncSnapshot<List<AlarmInfo>> snapshot) {
+      final _list = <Widget>[];
+
+      for (var i = 0; i < snapshot.data!.length; i++) {
+        final alarm = snapshot.data![i];
+
+        var alarmTime = DateFormat('hh:mm aa').format(alarm.alarmDateTime);
+        var gradientColor =
+            GradientTemplate.gradientTemplate[alarm.id! % 5].colors;
+        final _widget = Container(
+          margin: const EdgeInsets.only(bottom: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: gradientColor,
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: gradientColor.last.withOpacity(0.4),
+                blurRadius: 8,
+                spreadRadius: 2,
+                offset: const Offset(4, 4),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: gradientColor.last.withOpacity(0.4),
-                  blurRadius: 8,
-                  spreadRadius: 2,
-                  offset: const Offset(4, 4),
-                ),
-              ],
-              borderRadius: const BorderRadius.all(Radius.circular(24)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        const Icon(
-                          Icons.label,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          alarm.title,
-                          style: const TextStyle(
-                              color: Colors.white, fontFamily: 'avenir'),
-                        ),
-                      ],
-                    ),
-                    Switch(
-                      onChanged: (bool value) {},
-                      value: true,
-                      activeColor: Colors.white,
-                    ),
-                  ],
-                ),
-                const Text(
-                  'Mon-Fri',
-                  style: TextStyle(color: Colors.white, fontFamily: 'avenir'),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    Text(
-                      alarmTime,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'avenir',
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700),
-                    ),
-                    IconButton(
-                        icon: const Icon(Icons.delete),
+            ],
+            borderRadius: const BorderRadius.all(Radius.circular(24)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      const Icon(
+                        Icons.label,
                         color: Colors.white,
-                        onPressed: () {
-                          deleteAlarm(alarm.id!);
-                        }),
-                  ],
-                ),
-              ],
-            ),
-          );
-        });
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        alarm.title,
+                        style: const TextStyle(
+                            color: Colors.white, fontFamily: 'avenir'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Text(
+                alarmRepeatIntervalDisplay[alarm.alarmRepeatInterval],
+                style:
+                    const TextStyle(color: Colors.white, fontFamily: 'avenir'),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  Text(
+                    alarmTime,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'avenir',
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700),
+                  ),
+                  IconButton(
+                      icon: const Icon(Icons.delete),
+                      color: Colors.white,
+                      onPressed: () {
+                        deleteAlarm(alarm.id!);
+                      }),
+                ],
+              ),
+            ],
+          ),
+        );
+
+        _list.add(_widget);
+      }
+      return _list;
+    }
 
     final _futureContainer = Expanded(
       child: FutureBuilder<List<AlarmInfo>>(
         future: _alarms,
         builder: (context, snapshot) {
           if (snapshot.hasData) {
-            _currentAlarms = snapshot.data!;
             return ListView(
               children: _cards(snapshot).toList().followedBy([
-                if (_currentAlarms.length < 5)
-                  _addAlarmBtn
-                else
-                  const Center(
-                      child: Text(
-                    'Only 5 alarms allowed!',
-                    style: TextStyle(color: Colors.white),
-                  )),
+                _addAlarmBtn,
               ]).toList(),
             );
           }
@@ -262,7 +275,7 @@ class _AlarmPageState extends State<AlarmPage> {
     );
   }
 
-  void onSaveAlarm() {
+  Future<void> onSaveAlarm() async {
     DateTime scheduleAlarmDateTime;
     if (_alarmTime.isAfter(DateTime.now())) {
       scheduleAlarmDateTime = _alarmTime;
@@ -272,17 +285,44 @@ class _AlarmPageState extends State<AlarmPage> {
 
     var alarmInfo = AlarmInfo(
       alarmDateTime: scheduleAlarmDateTime,
-      gradientColorIndex: _currentAlarms.length,
-      title: 'alarm',
+      title: _titleController.text,
+      alarmRepeatInterval: _alarmRepeatInterval,
     );
-    _alarmHelper.insertAlarm(alarmInfo);
-    AlarmFunctions.scheduleAlarm(scheduleAlarmDateTime, alarmInfo);
+    _titleController.clear();
+    final _insertedId = await _alarmHelper.insertAlarm(alarmInfo);
+    alarmInfo.id = _insertedId;
+
+    switch (_alarmRepeatInterval) {
+      case AlarmRepeatInterval.onDate:
+        AlarmFunctions.scheduleAlarmOnDate(alarmInfo);
+        break;
+      case AlarmRepeatInterval.daily:
+        AlarmFunctions.repeatNotification(alarmInfo,
+            repeatInterval: RepeatInterval.daily);
+        break;
+      case AlarmRepeatInterval.everyMinute:
+        AlarmFunctions.repeatNotification(alarmInfo,
+            repeatInterval: RepeatInterval.everyMinute);
+        break;
+      case AlarmRepeatInterval.hourly:
+        AlarmFunctions.repeatNotification(alarmInfo,
+            repeatInterval: RepeatInterval.hourly);
+        break;
+      case AlarmRepeatInterval.weekly:
+        AlarmFunctions.repeatNotification(alarmInfo,
+            repeatInterval: RepeatInterval.weekly);
+        break;
+      default:
+        AlarmFunctions.scheduleAlarmOnDate(alarmInfo);
+    }
+
     Navigator.pop(context);
     loadAlarms();
   }
 
   void deleteAlarm(int id) {
     _alarmHelper.delete(id);
+    flutterLocalNotificationsPlugin.cancel(id);
     loadAlarms();
   }
 }

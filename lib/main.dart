@@ -1,9 +1,7 @@
 import 'dart:io';
 
-import 'package:alarm_app/constants/theme_data.dart';
 import 'package:alarm_app/enums.dart';
 import 'package:alarm_app/models/menu_info.dart';
-import 'package:alarm_app/views/clock_page.dart';
 import 'package:alarm_app/views/home.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -36,13 +34,7 @@ class ReceivedNotification {
 
 String? selectedNotificationPayload;
 
-/// IMPORTANT: running the following code on its own won't work as there is
-/// setup required for each platform head project.
-///
-/// Please download the complete example app from the GitHub repository where
-/// all the setup has been done
 Future<void> main() async {
-  // needed if you intend to initialize in the `main` function
   WidgetsFlutterBinding.ensureInitialized();
 
   await _configureLocalTimeZone();
@@ -50,8 +42,6 @@ Future<void> main() async {
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('ic_launcher');
 
-  /// Note: permissions aren't requested here just to demonstrate that can be
-  /// done later
   const initializationSettingsIOS = IOSInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
@@ -75,7 +65,6 @@ Future<void> _configureLocalTimeZone() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -88,18 +77,6 @@ class MyApp extends StatelessWidget {
         create: (context) => MenuInfo(MenuType.clock),
         child: const HomePage(),
       ),
-    );
-  }
-}
-
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: CustomColors.clockBG,
-      body: const ClockPage(),
     );
   }
 }
